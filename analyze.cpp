@@ -46,89 +46,135 @@ void push_back_token(std::vector<token> & v, T token_literal, std::string type) 
 }
 
 int main() {
-	std::ifstream f("test.java");
+	std::ifstream f("test_2.java");
 	std::vector<token> v_token;
 	std::string line;
-	bool in_comment = false;
+	bool in_comment = false, inline_comment = false, in_string_literal = false;
+
 	while(std::getline(f, line)) {
 		// word may contains the punctuations like ;,(){}
 		std::string word;
+		std::string string_literal;
 		std::istringstream line_stream(line);
 		while(line_stream >> word) {
-			std::cout << word << std::endl;
+			std::cout << "~~~~~~" << word << std::endl;
 
 			// Better approach is to read the line char by char.
 			std::string s;
 			std::string::size_type i = 0;
 			while(i < word.size()) {
-				if (word[i] == ';') {
-					push_back_token(v_token, word[i], "semi-colon");
-					push_back_token(v_token, s, "variable");
-					s.clear();
-					i++;
-					continue;
-				} else if (word[i] == ',') {
-					push_back_token(v_token, word[i], "comma");
-					push_back_token(v_token, s, "variable");
-					s.clear();
-					i++;
-					continue;
-				} else if (word[i] == '{') {
-					push_back_token(v_token, word[i], "open-curly-brace");
-					push_back_token(v_token, s, "variable");
-					s.clear();
-					i++;
-					continue;
-				} else if (word[i] == '}') {
-					push_back_token(v_token, word[i], "close-curly-brace");
-					push_back_token(v_token, s, "variable");
-					s.clear();
-					i++;
-					continue;
-				} else if (word[i] == '(') {
-					push_back_token(v_token, word[i], "open-parenthesis");
-					push_back_token(v_token, s, "variable");
-					s.clear();
-					i++;
-					continue;
-				} else if (word[i] == ')') {
-					push_back_token(v_token, word[i], "close-parenthesis");
-					push_back_token(v_token, s, "variable");
-					s.clear();
-					i++;
-					continue;
-				} else if (word[i] == ':') {
-					push_back_token(v_token, word[i], "colon");
-					push_back_token(v_token, s, "variable");
-					s.clear();
-					i++;
-					continue;
+				if (!in_comment && !inline_comment) {
+					if (word[i] == ';') {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						push_back_token(v_token, word[i], "semi-colon");
+						i++;
+						continue;
+					} else if (word[i] == ',') {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						push_back_token(v_token, word[i], "comma");
+						i++;
+						continue;
+					} else if (word[i] == '{') {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						push_back_token(v_token, word[i], "open-curly-brace");
+						i++;
+						continue;
+					} else if (word[i] == '}') {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						push_back_token(v_token, word[i], "close-curly-brace");
+						i++;
+						continue;
+					} else if (word[i] == '(') {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						push_back_token(v_token, word[i], "open-parenthesis");
+						i++;
+						continue;
+					} else if (word[i] == ')') {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						push_back_token(v_token, word[i], "close-parenthesis");
+						i++;
+						continue;
+					} else if (word[i] == ':') {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						push_back_token(v_token, word[i], "colon");
+						i++;
+						continue;
+					} else if (word[i] == '"' && !in_string_literal) {
+						push_back_token(v_token, s, "variable");
+						s.clear();
+						string_literal.append(1, '"');
+						in_string_literal = true;
+						i++;
+						continue;
+					} else if (word[i] == '"' && in_string_literal) {
+						string_literal.append(1, '"');
+						push_back_token(v_token, string_literal, "string_literal");
+						in_string_literal = false;
+						string_literal.clear();
+						i++;
+					}
+
+					if (word[i] == '/' && !in_string_literal) {
+						if (i + 1 < word.size() && word[i + 1] == '/') {
+							push_back_token(v_token, s, "variable");
+							s.clear();
+							inline_comment = true;
+							i += 2;
+							continue;
+
+						} else if (i + 1 < word.size() && word[i + 1] == '*') {
+							push_back_token(v_token, s, "variable");
+							s.clear();
+							in_comment = true;
+							i += 2;
+							continue;
+						}
+					}
 				}
 
-				s.append(1, word[i]);
+				if (!inline_comment && !in_string_literal) {
+					if (word[i] == '*') {
+						if (i + 1 < word.size() && word[i + 1] == '/') {
+							in_comment = false;
+							i += 2;
+							continue;
+						}
+					}
+				}
+
+				if (in_string_literal) {
+					string_literal.append(1, word[i]);
+				} else {
+					s.append(1, word[i]);
+				}
 
 				i++;
-				// if (s == comment_inline) {
-				// 	push_back_token(v_token, s, "inline-comment");
-				// 	s.clear();
-				// 	break;// can break because this is inner while loop is the parsing BY LINE;
-				// } else if (s == comment_begin) {
-				// 	push_back_token(v_token, s, "open-comment");
-				// 	s.clear();
-				// 	in_comment = true;
-				// } else if (s == comment_end) {
-				// 	push_back_token(v_token, s, "open-comment");
-				// 	s.clear();
-				// 	in_comment = false;
-				// } else {
 
-				// }
+				if (i == word.size() && !inline_comment && !in_comment && !in_string_literal) {
+					push_back_token(v_token, s, "variable");
+					s.clear();
+				}
 			}
+
+			if (in_string_literal) {
+				string_literal.append(" ");// Adding a single space is just a simulation.
+			}
+
 
 			if (in_comment)
 				continue;
 
 		}
+
+		inline_comment = false;
+
 	}
 
 	for (auto t : v_token)
